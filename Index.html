@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root { --bg:#faf8f5; --card:#ffffff; --ink:#26242b; --muted:#6f6a77; --line:#e7e2db; --accent:#6b4fbb; --accent-ink:#fff; --kcal:#e08a3c; --prot:#3f9b6e; --warn:#c0463b; --carb:#5b8def; --fat:#d6a935; --a-gym:#6b4fbb; --a-dance:#be4a79; --a-pilates:#1f807a; --a-self:#b45a37; --a-walk:#587d23; --a-rest:#75717d; --a-other:#78737f;
+          --good-text:#35825c; --warn-text:#a6652a; --danger-text:#c0463b; --tab-ink:#5a5562; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#17161a; --card:#222027; --ink:#f1eff4; --muted:#a39ead; --line:#34313b; --accent:#9a82e6; --accent-ink:#17161a; --good-text:#6fcf9f; --warn-text:#f2a65a; --danger-text:#ff8f84; --tab-ink:#a39ead; } }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0 auto; background:var(--bg); color:var(--ink); font:16px/1.4 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; padding:0 14px calc(90px + env(safe-area-inset-bottom)); max-width:520px; }
+  button, input, textarea { font-family:inherit; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+  .topbar { position:sticky; top:0; z-index:10; background:var(--bg); margin:0 -14px 10px; padding:10px 14px 4px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; margin-bottom:12px; }
+  .row { display:flex; gap:8px; align-items:center; justify-content:space-between; }
+  .hidden { display:none !important; }
+  .note { font-size:13px; color:var(--muted); margin:6px 0; }
+  .center { display:block; margin:4px auto 0; }
+
+  /* tabs and segmented controls */
+  .tabs { display:flex; background:var(--line); border-radius:12px; padding:3px; }
+  .tabs button { flex:1; border:0; background:transparent; color:var(--tab-ink); padding:11px 6px; border-radius:10px; font-size:16px; font-weight:600; }
+  .tabs button.on { background:var(--card); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.12); }
+  .tabs.sm { padding:2px; margin:0 auto 10px; max-width:240px; }
+  .tabs.sm button { padding:9px 4px; font-size:14px; font-weight:500; min-height:42px; }
+
+  /* day card */
+  .datebar { display:flex; align-items:center; gap:8px; }
+  .iconbtn { width:46px; height:46px; flex:none; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink); font-size:24px; line-height:1; }
+  .iconbtn:disabled { opacity:.3; }
+  .datebtn { position:relative; flex:1; height:46px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line); border-radius:12px; background:var(--bg); font-weight:600; }
+  .datebtn input { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
+  .bar-label { display:flex; justify-content:space-between; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  #progressCard > .bar-label:first-child { margin-top:0; }
+  .bar-label b { color:var(--ink); font-size:15px; }
+  .bar { height:10px; background:var(--line); border-radius:6px; overflow:hidden; }
+  .bar.thin { height:6px; }
+  .bar > div { height:100%; width:0; border-radius:6px; transition:width .4s; }
+  #kBar { background:var(--kcal); } #pBar { background:var(--prot); } #cBar { background:var(--carb); } #fBar { background:var(--fat); }
+  .minis { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .minis .bar-label { margin-top:10px; }
+  .left { font-size:13px; color:var(--muted); margin-top:10px; }
+  .daymini { font-size:14px; padding-top:10px; color:var(--muted); text-align:center; }
+  .daymini b { color:var(--ink); }
+  #logView.reviewing #progressCard { display:none; }     /* while reviewing an estimate, keep the screen focused on it */
+  .actwrap { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
+  .actlabel { display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--muted); min-height:28px; }
+
+  /* chips */
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .chip { border:1px solid var(--line); background:transparent; color:var(--ink); border-radius:999px; padding:10px 14px; font-size:15px; min-height:44px; }
+  .chip.on { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .achips { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; }
+  .achip { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); background:transparent; color:var(--ink); border-radius:999px; padding:10px 14px; font-size:15px; min-height:44px; }
+  .achip i { width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .achip.on { color:#fff; border-color:transparent; }
+  .achip:disabled { opacity:.45; }
+  .achip.static { padding:5px 11px; font-size:13px; cursor:default; min-height:0; }
+  .chips.scroll, .achips.scroll { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; margin-right:-14px; padding-right:14px; }
+  .chips.scroll::-webkit-scrollbar, .achips.scroll::-webkit-scrollbar { display:none; }
+  .chips.scroll .chip, .achips.scroll .achip { flex:none; }
+  .rlabel { margin:0 0 4px; }
+  .rchips { display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; margin-bottom:6px; scrollbar-width:none; }
+  .rchips::-webkit-scrollbar { display:none; }
+  .rchip { flex:none; max-width:78%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border:1px solid var(--line); background:var(--bg); color:var(--ink); border-radius:12px; padding:9px 12px; font-size:14px; min-height:44px; }
+
+  /* inputs */
+  textarea, input[type=text], input[type=number], input[type=time] { width:100%; border:1px solid var(--line); background:var(--bg); color:var(--ink); border-radius:12px; padding:12px; font-size:16px; }
+  textarea { min-height:76px; resize:vertical; }
+  #actNote { margin-top:2px; }
+  .btn { width:100%; border:0; border-radius:14px; padding:15px; font-size:16px; font-weight:600; background:var(--accent); color:var(--accent-ink); }
+  .btn.secondary { background:transparent; color:var(--ink); border:1px solid var(--line); font-weight:500; }
+  .btn.danger { background:transparent; color:var(--danger-text); border:1px solid var(--danger-text); font-weight:500; }
+  .btn.small { padding:12px; font-size:15px; }
+  .btn:disabled { opacity:.55; }
+  .link { color:var(--muted); font-size:14px; background:none; border:0; text-decoration:underline; padding:13px 10px; }
+  .link.tight { font-size:13px; padding:13px 8px; margin:-13px -8px; }   /* 44px hit area without changing the layout */
+  .compose { display:flex; gap:8px; align-items:stretch; }
+  .compose textarea { flex:1; min-height:84px; }
+  .camerabtn { flex:none; width:64px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; border:1.5px dashed var(--line); border-radius:12px; color:var(--muted); font-size:11px; cursor:pointer; }
+  .pwrap { position:relative; flex:none; display:inline-block; margin-top:10px; }
+  .pwrap img { width:56px; height:56px; object-fit:cover; border-radius:10px; display:block; }
+  .pwrap button { position:absolute; top:-8px; right:-8px; width:26px; height:26px; border-radius:50%; border:0; background:var(--ink); color:var(--bg); font-size:16px; line-height:1; }
+
+  /* result card */
+  .rrow { display:flex; gap:8px; }
+  .rrow #rDesc { flex:1; min-width:0; }
+  .rrow #rTime { flex:none; width:124px; padding:12px 8px; }
+  .banner { background:var(--bg); border-radius:10px; padding:8px 10px; }
+  .grid { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin:10px 0; }
+  .grid label { font-size:11px; color:var(--muted); display:block; text-align:center; }
+  .grid input { text-align:center; padding:11px 2px; }
+  .conf { display:inline-block; font-size:12px; padding:3px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  .conf.low { color:var(--warn-text); border-color:var(--kcal); }
+  .after { white-space:pre-line; font-size:14px; margin:10px 0; padding:8px 10px; border-radius:10px; background:var(--bg); }
+  .stickybar { position:sticky; bottom:10px; z-index:5; padding:6px 0; background:linear-gradient(to top, var(--card) 70%, transparent); }
+
+  /* logged meals */
+  #resultCard:focus { outline:none; }
+  .chev { flex:none; align-self:center; color:var(--muted); font-size:20px; line-height:1; transition:transform .15s; }
+  .mealhead[aria-expanded="true"] .chev { transform:rotate(90deg); }
+  .mealrow { border-top:1px solid var(--line); }
+  .mealrow:first-child { border-top:0; }
+  .mealhead { width:100%; display:flex; justify-content:space-between; gap:10px; text-align:left; background:none; border:0; padding:11px 0; color:var(--ink); }
+  .mealhead .mt { display:block; font-size:12px; color:var(--muted); }
+  .mealhead .md { display:block; font-size:14px; }
+  .mealhead .mk { text-align:right; white-space:nowrap; font-size:14px; }
+  .mealhead .mk small { display:block; font-size:12px; color:var(--muted); }
+  .mealbody { padding:0 0 12px; }
+  .mealbody .btns { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px; }
+
+  /* toast */
+  #msg { position:fixed; left:14px; right:14px; bottom:calc(18px + env(safe-area-inset-bottom)); max-width:492px; margin:0 auto; background:var(--ink); color:var(--bg); padding:12px 14px; border-radius:12px; font-size:14px; display:none; align-items:center; justify-content:space-between; gap:12px; z-index:20; }
+  #msg.err { background:var(--warn); color:#fff; }
+  #msgAction { background:none; border:0; color:inherit; font-weight:700; text-decoration:underline; font-size:14px; padding:12px 8px; margin:-8px -4px; }
+
+  /* averages */
+  .navrow { display:flex; justify-content:space-between; align-items:center; margin:4px 0 12px; }
+  .navlabel { text-align:center; font-weight:600; }
+  .navlabel .note { margin:0; font-weight:400; }
+  .tiles { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+  .tile { background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:10px 12px; text-align:left; color:var(--ink); }
+  .tile.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .tile .tl { font-size:12px; color:var(--muted); }
+  .tile .tv { font-size:24px; font-weight:700; letter-spacing:-.3px; margin:2px 0 6px; }
+  .tile .tu { font-size:12px; font-weight:400; color:var(--muted); }
+  .statlabel { font-size:13px; color:var(--muted); }
+  .statrow { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-top:2px; }
+  .big { font-size:34px; font-weight:700; letter-spacing:-.5px; }
+  .unit { color:var(--muted); font-size:14px; }
+  .pill { font-size:12px; padding:3px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  .pill.good { color:var(--good-text); border-color:var(--prot); }
+  .pill.warn { color:var(--warn-text); border-color:var(--kcal); }
+  .charttitle { font-weight:600; }
+  .chart { position:relative; height:84px; display:flex; align-items:flex-end; gap:3px; margin-top:14px; touch-action:pan-y; user-select:none; -webkit-user-select:none; }
+  .col { flex:1; height:100%; display:flex; align-items:flex-end; cursor:pointer; border-radius:6px; }
+  .col > div { width:100%; border-radius:4px 4px 0 0; min-height:2px; }
+  .col.sel { background:rgba(107,79,187,.16); }
+  .tline { position:absolute; left:0; right:0; border-top:1.5px dashed var(--muted); opacity:.6; pointer-events:none; }
+  .xlabels { display:flex; gap:3px; margin-top:4px; font-size:11px; color:var(--muted); }
+  .xlabels span { flex:1; text-align:center; min-height:14px; }
+  .legend { font-size:12px; color:var(--muted); margin-top:8px; }
+  .sub { font-size:13px; color:var(--muted); margin-top:6px; }
+  .detail { margin-top:12px; padding:10px; background:var(--bg); border-radius:12px; }
+  .dtitle { font-weight:600; font-size:14px; margin-bottom:8px; }
+  .dgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; text-align:center; }
+  .dgrid b { display:block; font-size:17px; }
+  .dgrid span { display:block; font-size:11px; color:var(--muted); }
+  .dgrid .cur b { color:var(--accent); }
+  .dact { margin-top:10px; font-size:14px; }
+  .actrow { display:flex; gap:3px; margin-top:6px; }
+  .actrow span { flex:1; display:flex; justify-content:center; align-items:center; min-height:22px; }
+  .adot { display:inline-block; width:8px; height:8px; border-radius:50%; }
+  .adot.big { width:22px; height:22px; line-height:22px; font-size:11px; font-weight:700; color:#fff; text-align:center; font-style:normal; }
+  .adot.rest { width:8px; height:2px; border-radius:1px; background:var(--a-rest); }
+  .alegend { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; color:var(--muted); margin-top:6px; }
+  .alegend i { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="tabs" role="tablist">
+    <button id="tabLog" class="on" role="tab" aria-selected="true">Log</button>
+    <button id="tabAvg" role="tab" aria-selected="false">Averages</button>
+  </div>
+</div>
+
+<div id="logView">
+
+  <div class="card" id="dayCard">
+    <div class="datebar">
+      <button class="iconbtn" id="dayPrev" aria-label="Previous day">&#8249;</button>
+      <label class="datebtn"><span id="dateLabel">Today</span><input type="date" id="date" aria-label="Choose a date"></label>
+      <button class="iconbtn" id="dayNext" aria-label="Next day">&#8250;</button>
+    </div>
+    <button class="link center hidden" id="dayToday">Back to today</button>
+    <div class="note hidden" id="loadErr">Could not load your data. <button class="link" id="retryBtn">Retry</button></div>
+
+    <div class="daymini" id="dayMini">Loading&hellip;</div>
+  </div>
+
+  <div class="card" id="inputCard">
+    <div class="chips scroll" id="chips"></div>
+    <div id="recentBox" class="hidden">
+      <div class="note rlabel">Log again</div>
+      <div class="rchips" id="recent"></div>
+    </div>
+    <div class="compose">
+      <textarea id="text" placeholder="What did you eat? Mention oil, sauce, portion size" aria-label="Describe your meal"></textarea>
+      <label for="file" id="photoLabel" class="camerabtn" aria-label="Add a photo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>
+        <span id="photoCaption">Photo</span>
+      </label>
+    </div>
+    <div class="pwrap hidden" id="pwrap"><img id="preview" alt="Selected meal photo"><button id="rmPhoto" aria-label="Remove photo">&times;</button></div>
+    <input type="file" id="file" accept="image/*" class="hidden">
+    <div style="height:10px"></div>
+    <button class="btn" id="estimateBtn">Estimate</button>
+  </div>
+
+  <div class="card hidden" id="resultCard">
+    <div class="chips scroll" id="rChips"></div>
+    <div class="note banner hidden" id="rBanner"></div>
+    <div class="rrow"><input type="text" id="rDesc" aria-label="Meal description"><input type="time" id="rTime" aria-label="Time eaten"></div>
+    <div class="note" id="rPortion"></div>
+    <div class="grid">
+      <div><label for="rKcal">kcal</label><input type="number" inputmode="numeric" id="rKcal"></div>
+      <div><label for="rP">Protein</label><input type="number" inputmode="numeric" id="rP"></div>
+      <div><label for="rC">Carbs</label><input type="number" inputmode="numeric" id="rC"></div>
+      <div><label for="rF">Fat</label><input type="number" inputmode="numeric" id="rF"></div>
+      <div><label for="rFi">Fiber</label><input type="number" inputmode="numeric" id="rFi"></div>
+    </div>
+    <span class="conf" id="rConf"></span>
+    <div class="note" id="rNotes"></div>
+    <div class="note" id="rSources"></div>
+    <div class="after" id="after"></div>
+    <div class="stickybar"><button class="btn" id="saveBtn">Save to log</button></div>
+    <div style="height:8px"></div>
+    <textarea id="correction" placeholder="Not right? Tell me, e.g. 'rice was about 250 g' or 'no oil'" style="min-height:56px" aria-label="Correction"></textarea>
+    <div style="height:8px"></div>
+    <button class="btn secondary" id="refineBtn">Re-estimate with correction</button>
+    <div style="height:6px"></div>
+    <button class="link" id="discardBtn">Discard</button>
+  </div>
+
+  <div class="card" id="progressCard">
+      <div class="bar-label"><span>Calories</span><span><b id="kEat">&ndash;</b> / <span id="kTgt">&ndash;</span></span></div>
+      <div class="bar"><div id="kBar"></div></div>
+      <div class="bar-label"><span>Protein</span><span><b id="pEat">&ndash;</b> / <span id="pTgt">&ndash;</span> g</span></div>
+      <div class="bar"><div id="pBar"></div></div>
+      <div class="minis">
+        <div>
+          <div class="bar-label"><span>Carbs</span><span><b id="cEat">&ndash;</b> / <span id="cTgt">&ndash;</span> g</span></div>
+          <div class="bar thin"><div id="cBar"></div></div>
+        </div>
+        <div>
+          <div class="bar-label"><span>Fat</span><span><b id="fEat">&ndash;</b> / <span id="fTgt">&ndash;</span> g</span></div>
+          <div class="bar thin"><div id="fBar"></div></div>
+        </div>
+      </div>
+      <div class="left" id="left"></div>
+
+      <div class="actwrap" id="actCard">
+        <div class="actlabel"><span>Activity</span><span><span id="actSaved"></span><button class="link tight hidden" id="actMore">Add details</button></span></div>
+        <div class="achips scroll" id="achips"></div>
+        <input type="text" id="actNote" maxlength="80" placeholder="Details (optional), e.g. Reformer, 55 min" aria-label="Activity details">
+        <div class="note" id="actHint"></div>
+      </div>
+  </div>
+
+  <div class="card" id="mealsCard">
+    <div class="row"><span class="note" style="margin:0">Logged this day</span><span class="note" id="mealsHint" style="margin:0"></span></div>
+    <div id="meals"></div>
+  </div>
+</div>
+
+<div id="avgView" class="hidden">
+  <div class="tabs sm"><button id="perWeek" class="on" aria-pressed="true">Week</button><button id="perMonth" aria-pressed="false">Month</button></div>
+  <div class="navrow">
+    <button class="iconbtn" id="avgPrev" aria-label="Previous period">&#8249;</button>
+    <div class="navlabel"><div id="avgLabel"></div><div class="note" id="avgSub"></div></div>
+    <button class="iconbtn" id="avgNext" aria-label="Next period">&#8250;</button>
+  </div>
+  <div id="avgBody"></div>
+</div>
+
+<div id="msg" role="status" aria-live="polite"><span id="msgText"></span><button id="msgAction" class="hidden"></button></div>
+
+<script>
+var MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Drink'];
+var meal = null, imageB64 = null, imageMime = 'image/jpeg', current = null, state = null;
+var loadedToday = '', openRow = null, stateSeq = 0, actSeq = 0, actNoteOpen = false;
+var ESTIMATE_MSGS = ['Reading your meal...', 'Checking product labels...', 'Still working, almost there...'];
+var ESTIMATE_AT = [0, 4000, 12000];
+function $(id) { return document.getElementById(id); }
+
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function todayStr() { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function nowTime() { var d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+function guessMeal() { var h = new Date().getHours(); return h < 11 ? 'Breakfast' : h < 15 ? 'Lunch' : h < 18 ? 'Snack' : 'Dinner'; }
+function num(id) { return Math.max(0, Number($(id).value) || 0); }
+function fmtDay(k) { return fromKey(k).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); }
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+var WRITES = { saveMeal: 1, updateMeal: 1, deleteMeal: 1, undoLast: 1, setActivity: 1 };
+function call(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  if (WRITES[fn]) { periodCache = {}; }
+  return new Promise(function (ok, fail) {
+    var r = google.script.run
+      .withSuccessHandler(function (v) { if (v === null || v === undefined) fail(new Error('No response from the server. Reload and try again.')); else ok(v); })
+      .withFailureHandler(function (e) { fail(new Error(e && e.message ? e.message : String(e))); });
+    r[fn].apply(r, args);
+  });
+}
+
+// ---------- feedback: toast (with optional action), busy buttons ----------
+function hideToast() { clearTimeout(toast.t); $('msg').style.display = 'none'; }
+function toast(t, isErr, action) {
+  var m = $('msg'), a = $('msgAction');
+  $('msgText').textContent = t; m.className = isErr ? 'err' : ''; m.style.display = 'flex';
+  if (action) { a.textContent = action.label; a.classList.remove('hidden'); a.onclick = function () { hideToast(); action.fn(); }; }
+  else { a.classList.add('hidden'); a.onclick = null; }
+  clearTimeout(toast.t); toast.t = setTimeout(hideToast, (isErr || action) ? 7000 : 2200);
+}
+$('msgText').onclick = hideToast;
+function busy(btn, on, label) {
+  if (!btn.dataset.l) btn.dataset.l = btn.textContent;
+  btn.disabled = on; btn.textContent = on ? label : btn.dataset.l;
+}
+function startBusy(btn, msgs, at) {
+  if (!btn.dataset.l) btn.dataset.l = btn.textContent;
+  btn.disabled = true; btn.setAttribute('aria-busy', 'true');
+  btn._timers = at.map(function (ms, i) { return setTimeout(function () { btn.textContent = msgs[i]; }, ms); });
+}
+function stopBusy(btn) {
+  (btn._timers || []).forEach(clearTimeout); btn._timers = [];
+  btn.disabled = false; btn.removeAttribute('aria-busy'); btn.textContent = btn.dataset.l || btn.textContent;
+}
+
+// ---------- meal type chips (shown in the input card and again in the result card) ----------
+function renderChips() {
+  ['chips', 'rChips'].forEach(function (id) {
+    var c = $(id); c.innerHTML = '';
+    MEALS.forEach(function (m) {
+      var b = document.createElement('button'); b.className = 'chip' + (m === meal ? ' on' : ''); b.textContent = m;
+      b.setAttribute('aria-pressed', m === meal);
+      b.onclick = function () { meal = m; renderChips(); };
+      c.appendChild(b);
+    });
+  });
+}
+
+// ---------- day card ----------
+function setBar(id, val, tgt) { $(id).style.width = Math.min(100, tgt ? val / tgt * 100 : 0) + '%'; }
+function renderState() {
+  var t = state.targets, s = state.totals;
+  $('loadErr').classList.add('hidden');
+  $('kEat').textContent = fmtNum(s.kcal); $('kTgt').textContent = fmtNum(t.kcal);
+  $('pEat').textContent = Math.round(s.protein); $('pTgt').textContent = t.proteinMin + '-' + t.proteinMax;
+  $('cEat').textContent = Math.round(s.carbs); $('cTgt').textContent = t.carbs;
+  $('fEat').textContent = Math.round(s.fat); $('fTgt').textContent = t.fat;
+  setBar('kBar', s.kcal, t.kcal); setBar('pBar', s.protein, t.proteinMin); setBar('cBar', s.carbs, t.carbs); setBar('fBar', s.fat, t.fat);
+  var kl = Math.round(t.kcal - s.kcal), pl = Math.round(t.proteinMin - s.protein);
+  $('left').textContent = (pl > 0 ? pl + ' g protein to reach ' + t.proteinMin : 'Protein goal reached') +
+    ' \u00b7 ' + (kl >= 0 ? fmtNum(kl) + ' kcal left' : fmtNum(Math.abs(kl)) + ' kcal over');
+  $('dayMini').innerHTML = '<b>' + fmtNum(s.kcal) + '</b> / ' + fmtNum(t.kcal) + ' kcal \u00b7 <b>' + Math.round(s.protein) + '</b> / ' + t.proteinMin + '\u2013' + t.proteinMax + ' g protein';
+  renderMeals(); renderRecent(); renderActivity(); updateAfter();
+}
+function updateAfter() {
+  if (!state || $('resultCard').classList.contains('hidden')) return;
+  var t = state.targets, s = state.totals;
+  var p = s.protein + num('rP'), k = s.kcal + num('rKcal'), c = s.carbs + num('rC'), f = s.fat + num('rF');
+  $('after').textContent = 'After this meal: ' + Math.round(p) + ' g protein (goal ' + t.proteinMin + '-' + t.proteinMax + ') \u00b7 ' +
+    fmtNum(k) + ' of ' + fmtNum(t.kcal) + ' kcal\nCarbs ' + Math.round(c) + ' / ' + t.carbs + ' g \u00b7 Fat ' + Math.round(f) + ' / ' + t.fat + ' g';
+}
+function refresh() {
+  var seq = ++stateSeq;
+  return call('getState', $('date').value).then(function (s) {
+    if (seq !== stateSeq) return;          // a newer request is in flight
+    state = s; renderState();
+  }).catch(function (e) {
+    if (seq !== stateSeq) return;
+    $('loadErr').classList.remove('hidden'); toast(e.message, true);
+  });
+}
+function onDateChanged() {
+  var t = todayStr(), v = $('date').value;
+  if (!v || v > t) { v = t; $('date').value = t; }
+  var yest = keyOf(addDays(fromKey(t), -1));
+  $('dateLabel').textContent = fmtDay(v) + (v === t ? ' \u00b7 Today' : v === yest ? ' \u00b7 Yesterday' : '');
+  $('dayNext').disabled = v >= t;
+  $('dayToday').classList.toggle('hidden', v === t);
+  openRow = null; actNoteOpen = false;
+  refresh();
+}
+function setDay(delta) { $('date').value = keyOf(addDays(fromKey($('date').value || todayStr()), delta)); onDateChanged(); }
+$('date').onchange = onDateChanged;
+$('dayPrev').onclick = function () { setDay(-1); };
+$('dayNext').onclick = function () { setDay(1); };
+$('dayToday').onclick = function () { $('date').value = todayStr(); onDateChanged(); };
+$('retryBtn').onclick = refresh;
+
+// ---------- logged meals: tap to open, edit or delete ----------
+var lastMealsSig = '';
+function renderMeals() {
+  var sig = JSON.stringify(state.meals) + '|' + openRow;
+  // Returning to the app triggers a refresh. If nothing changed and an editor is open, leave it alone so half-typed edits survive.
+  if (openRow !== null && $('eDesc') && sig === lastMealsSig) return;
+  lastMealsSig = sig;
+  var box = $('meals'); box.innerHTML = '';
+  $('mealsHint').textContent = state.meals.length ? 'Tap a meal to edit' : '';
+  if (!state.meals.length) {
+    box.innerHTML = '<div class="note">' + ($('date').value === todayStr() ? 'Nothing logged yet. Describe a meal above, or tap the camera.' : 'Nothing logged for this day.') + '</div>';
+    return;
+  }
+  state.meals.forEach(function (m) { box.appendChild(mealRow(m)); });
+}
+function mealRow(m) {
+  var wrap = document.createElement('div'); wrap.className = 'mealrow';
+  var head = document.createElement('button'); head.className = 'mealhead'; head.setAttribute('aria-expanded', openRow === m.row);
+  var left = document.createElement('span');
+  var mt = document.createElement('span'); mt.className = 'mt'; mt.textContent = (m.meal || '') + (m.time ? ' \u00b7 ' + m.time : '');
+  var md = document.createElement('span'); md.className = 'md'; md.textContent = m.desc;
+  left.appendChild(mt); left.appendChild(md);
+  var right = document.createElement('span'); right.className = 'mk'; right.textContent = fmtNum(m.kcal) + ' kcal';
+  var sm = document.createElement('small'); sm.textContent = 'P ' + Math.round(m.protein) + ' \u00b7 C ' + Math.round(m.carbs) + ' \u00b7 F ' + Math.round(m.fat);
+  right.appendChild(sm);
+  var chev = document.createElement('span'); chev.className = 'chev'; chev.setAttribute('aria-hidden', 'true'); chev.textContent = '\u203a';
+  head.appendChild(left); head.appendChild(right); head.appendChild(chev);
+  head.onclick = function () { openRow = (openRow === m.row) ? null : m.row; renderMeals(); };
+  wrap.appendChild(head);
+  if (openRow === m.row) wrap.appendChild(mealEditor(m));
+  return wrap;
+}
+function mealEditor(m) {
+  var box = document.createElement('div'); box.className = 'mealbody';
+  var info = [];
+  if (m.portion) info.push('Portion: ' + m.portion);
+  if (m.notes) info.push(m.notes);
+  var fields = [['eKcal', 'kcal', m.kcal], ['eP', 'Protein', m.protein], ['eC', 'Carbs', m.carbs], ['eF', 'Fat', m.fat], ['eFi', 'Fiber', m.fiber]];
+  box.innerHTML = (info.length ? '<div class="note">' + esc(info.join(' \u00b7 ')) + '</div>' : '') +
+    '<input type="text" id="eDesc" value="' + esc(m.desc) + '" aria-label="Description">' +
+    '<div class="grid">' + fields.map(function (x) {
+      return '<div><label for="' + x[0] + '">' + x[1] + '</label><input type="number" inputmode="numeric" id="' + x[0] + '" value="' + Math.round(x[2]) + '"></div>';
+    }).join('') + '</div>' +
+    '<div class="btns"><button class="btn small" id="eSave">Save changes</button><button class="btn danger small" id="eDel">Delete</button></div>';
+  var ref = { row: m.row, date: $('date').value, desc: m.desc };
+  var val = function (id) { return Math.max(0, Number(box.querySelector(id).value) || 0); };
+  box.querySelector('#eSave').onclick = function () {
+    var b = this; busy(b, true, 'Saving...');
+    call('updateMeal', ref, { description: box.querySelector('#eDesc').value, kcal: val('#eKcal'), protein: val('#eP'), carbs: val('#eC'), fat: val('#eF'), fiber: val('#eFi') })
+      .then(function (s) { openRow = null; state = s; renderState(); toast('Updated'); })
+      .catch(function (e) { toast(e.message, true); refresh(); })
+      .then(function () { busy(b, false); });
+  };
+  var del = box.querySelector('#eDel');     // two taps instead of a pop-up (confirm() is unreliable in this frame)
+  del.onclick = function () {
+    if (!del.dataset.armed) {
+      del.dataset.armed = '1'; del.textContent = 'Tap again to delete';
+      setTimeout(function () { delete del.dataset.armed; del.textContent = 'Delete'; }, 4000);
+      return;
+    }
+    call('deleteMeal', ref).then(function (s) { openRow = null; state = s; renderState(); toast('Deleted'); })
+      .catch(function (e) { toast(e.message, true); refresh(); });
+  };
+  return box;
+}
+
+// ---------- recent meals: one-tap "log again" ----------
+function renderRecent() {
+  var r = (state && state.recent) || [], box = $('recent');
+  $('recentBox').classList.toggle('hidden', !r.length);
+  box.innerHTML = '';
+  r.forEach(function (x) {
+    var b = document.createElement('button'); b.className = 'rchip';
+    b.textContent = x.desc + ' \u00b7 ' + fmtNum(x.kcal) + ' kcal'; b.title = x.desc;
+    b.onclick = function () {
+      showResult({ description: x.desc, portion: x.portion, kcal: x.kcal, protein: x.protein, carbs: x.carbs, fat: x.fat, fiber: x.fiber,
+                   confidence: x.confidence || 'Medium', notes: 'Logged again from an earlier entry.', sources: '' }, { repeat: true });
+    };
+    box.appendChild(b);
+  });
+}
+
+// ---------- photo ----------
+function clearPhotoUi() { $('pwrap').classList.add('hidden'); $('preview').removeAttribute('src'); $('photoCaption').textContent = 'Photo'; }
+$('rmPhoto').onclick = function (ev) { ev.preventDefault(); imageB64 = null; $('file').value = ''; clearPhotoUi(); };
+$('file').onchange = function (ev) {      // downscale so uploads are fast and cheap
+  var f = ev.target.files[0]; if (!f) return;
+  var img = new Image(), url = URL.createObjectURL(f);
+  img.onload = function () {
+    var max = 1280, sc = Math.min(1, max / Math.max(img.width, img.height));
+    var cv = document.createElement('canvas'); cv.width = Math.round(img.width * sc); cv.height = Math.round(img.height * sc);
+    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+    var data = cv.toDataURL('image/jpeg', 0.82);
+    imageB64 = data.split(',')[1]; imageMime = 'image/jpeg';
+    $('preview').src = data; $('pwrap').classList.remove('hidden'); $('photoCaption').textContent = 'Change';
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = function () { toast('Could not read that photo. Try another one.', true); };
+  img.src = url;
+};
+
+// ---------- estimate -> review -> save ----------
+function showResult(r, opts) {
+  opts = opts || {};
+  current = r;
+  $('rDesc').value = r.description; $('rPortion').textContent = r.portion;
+  $('rKcal').value = r.kcal; $('rP').value = r.protein; $('rC').value = r.carbs; $('rF').value = r.fat; $('rFi').value = r.fiber;
+  $('rConf').className = 'conf' + (r.confidence === 'Low' ? ' low' : '');
+  $('rConf').textContent = 'Confidence: ' + r.confidence + (r.confidence === 'Low' ? ' \u00b7 add amounts or brands, then re-estimate' : '');
+  $('rNotes').textContent = r.notes;
+  $('rSources').textContent = r.sources ? 'Data used: ' + r.sources : '';
+  $('rBanner').textContent = opts.repeat ? 'Adjust the amounts if this time was different.' : '';
+  $('rBanner').classList.toggle('hidden', !opts.repeat);
+  if (!opts.keepTime) $('rTime').value = ($('date').value === todayStr()) ? nowTime() : '';
+  $('correction').value = '';
+  $('resultCard').classList.remove('hidden'); $('inputCard').classList.add('hidden');
+  $('logView').classList.add('reviewing');
+  renderChips(); updateAfter(); window.scrollTo(0, 0);
+  var rc = $('resultCard'); rc.setAttribute('tabindex', '-1'); rc.focus({ preventScroll: true });   // moves screen-reader focus to the result
+}
+function resetInput() {
+  imageB64 = null; current = null; $('file').value = ''; clearPhotoUi();
+  $('text').value = ''; meal = guessMeal(); renderChips();
+  $('resultCard').classList.add('hidden'); $('inputCard').classList.remove('hidden'); $('logView').classList.remove('reviewing');
+}
+function formValues() {
+  return { description: $('rDesc').value, portion: current ? current.portion : '',
+    kcal: num('rKcal'), protein: num('rP'), carbs: num('rC'), fat: num('rF'), fiber: num('rFi'),
+    confidence: current ? current.confidence : 'Medium', notes: current ? current.notes : '', sources: current ? current.sources : '' };
+}
+['rKcal', 'rP', 'rC', 'rF', 'rFi'].forEach(function (id) { $(id).addEventListener('input', updateAfter); });
+
+$('estimateBtn').onclick = function () {
+  if (!imageB64 && !$('text').value.trim()) { toast('Add a photo or describe what you ate.', true); $('text').focus(); return; }
+  var b = $('estimateBtn'); startBusy(b, ESTIMATE_MSGS, ESTIMATE_AT);
+  call('estimateMeal', { text: $('text').value, image: imageB64, mime: imageMime })
+    .then(function (r) { showResult(r); }).catch(function (e) { toast(e.message, true); })
+    .then(function () { stopBusy(b); });
+};
+$('refineBtn').onclick = function () {
+  var c = $('correction').value.trim(); if (!c) { toast('Type what to correct first.', true); $('correction').focus(); return; }
+  var b = $('refineBtn'); startBusy(b, ['Updating...', 'Checking product labels...', 'Still working, almost there...'], ESTIMATE_AT);
+  var base = $('text').value.trim() || (imageB64 ? '' : $('rDesc').value);   // "log again" entries have no original text
+  call('estimateMeal', { text: base, image: imageB64, mime: imageMime, previous: formValues(), correction: c })
+    .then(function (r) { showResult(r, { keepTime: true }); }).catch(function (e) { toast(e.message, true); })
+    .then(function () { stopBusy(b); });
+};
+function undoSave() {
+  call('undoLast', $('date').value).then(function (s) { state = s; renderState(); toast('Removed'); })
+    .catch(function (e) { toast(e.message, true); });
+}
+$('saveBtn').onclick = function () {
+  if (!$('rDesc').value.trim()) { toast('Add a short description before saving.', true); $('rDesc').focus(); return; }
+  var b = $('saveBtn'); busy(b, true, 'Saving...');
+  var m = formValues(); m.date = $('date').value; m.time = $('rTime').value; m.meal = meal || guessMeal();
+  if (m.sources) m.notes = (m.notes ? m.notes + ' | ' : '') + 'Data: ' + m.sources;
+  delete m.sources;
+  call('saveMeal', m)
+    .then(function (s) { state = s; resetInput(); renderState(); toast('Saved to ' + m.meal.toLowerCase(), false, { label: 'Undo', fn: undoSave }); })
+    .catch(function (e) { toast(e.message, true); })
+    .then(function () { busy(b, false); });
+};
+$('discardBtn').onclick = resetInput;
+
+// ---------- activity ----------
+var ACT = {
+  'Gym': { c: 'var(--a-gym)', k: 'G' }, 'Dance': { c: 'var(--a-dance)', k: 'D' }, 'Pilates': { c: 'var(--a-pilates)', k: 'P' },
+  'Self-defense': { c: 'var(--a-self)', k: 'S' }, 'Long walk': { c: 'var(--a-walk)', k: 'W' }, 'Rest': { c: 'var(--a-rest)', k: 'R' }
+};
+var ACT_ORDER_DEFAULT = ['Gym', 'Dance', 'Pilates', 'Self-defense', 'Long walk', 'Rest'];
+function actInfo(t) { return ACT[t] || { c: 'var(--a-other)', k: (String(t).charAt(0) || '?').toUpperCase() }; }
+function activeOf(list) { return (list || []).filter(function (t) { return t !== 'Rest'; }); }
+function actLabel(t) { return t === 'Rest' ? 'Rest day' : t; }
+
+function renderActivity() {
+  var a = state && state.activity, card = $('actCard');
+  if (!a) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  var order = (state.activityTypes || ACT_ORDER_DEFAULT).slice();
+  a.types.forEach(function (t) { if (order.indexOf(t) < 0) order.push(t); });
+  var box = $('achips'); box.innerHTML = '';
+  order.forEach(function (t) {
+    var inf = actInfo(t), on = a.types.indexOf(t) >= 0;
+    var b = document.createElement('button'); b.className = 'achip' + (on ? ' on' : ''); b.disabled = !a.inRange;
+    b.setAttribute('aria-pressed', on);
+    if (on) b.style.background = inf.c;
+    var dot = document.createElement('i'); dot.style.background = on ? '#fff' : inf.c; b.appendChild(dot);
+    b.appendChild(document.createTextNode(actLabel(t)));
+    b.onclick = function () { toggleActivity(t); };
+    box.appendChild(b);
+  });
+  if (document.activeElement !== $('actNote')) $('actNote').value = a.note;
+  $('actNote').disabled = !a.inRange;
+  var has = a.types.length > 0, showNote = has && a.inRange && (a.note || actNoteOpen);   // details only once something is selected
+  if (!has) actNoteOpen = false;
+  $('actNote').classList.toggle('hidden', !showNote);
+  $('actMore').classList.toggle('hidden', !(has && a.inRange && !showNote));
+  $('actHint').textContent = a.inRange ? '' : 'This date is outside the tracker range, so activity cannot be saved for it.';
+}
+function flashSaved() {
+  $('actSaved').textContent = 'Saved'; clearTimeout(flashSaved.t);
+  flashSaved.t = setTimeout(function () { $('actSaved').textContent = ''; }, 1500);
+}
+function saveActivity(types, note) {
+  var seq = ++actSeq;
+  call('setActivity', $('date').value, types, note).then(function (s) {
+    if (seq !== actSeq) return;               // a newer tap is already in flight
+    state = s; renderState(); flashSaved();
+  }).catch(function (e) { toast(e.message, true); refresh(); });
+}
+function toggleActivity(t) {
+  var cur = state.activity.types.slice(), next;
+  if (t === 'Rest') { next = cur.indexOf('Rest') >= 0 ? [] : ['Rest']; }
+  else {
+    cur = cur.filter(function (x) { return x !== 'Rest'; });
+    var i = cur.indexOf(t); if (i >= 0) cur.splice(i, 1); else cur.push(t);
+    next = cur;
+  }
+  state.activity.types = next; renderActivity();   // instant feedback, the server confirms
+  saveActivity(next, null);
+}
+$('actMore').onclick = function () { actNoteOpen = true; renderActivity(); $('actNote').focus(); };
+$('actNote').onchange = function () { if (state && state.activity && state.activity.inRange) saveActivity(state.activity.types, $('actNote').value); };
+
+
+// ---------- Averages view ----------
+var avg = { period: 'week', anchor: new Date(), includeToday: false, data: null, req: 0, metric: 'kcal', sel: null };
+function keyOf(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function fromKey(k) { var a = k.split('-'); return new Date(+a[0], +a[1] - 1, +a[2]); }
+function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+function fmtNum(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function periodRange() {
+  var a = avg.anchor, s, e;
+  if (avg.period === 'week') { s = addDays(a, -((a.getDay() + 6) % 7)); e = addDays(s, 6); }
+  else { s = new Date(a.getFullYear(), a.getMonth(), 1); e = new Date(a.getFullYear(), a.getMonth() + 1, 0); }
+  return { start: s, end: e };
+}
+function periodLabel(r) {
+  if (avg.period === 'month') return r.start.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  var o = { day: 'numeric', month: 'short' };
+  var y = r.start.getFullYear() !== new Date().getFullYear() ? ' ' + r.end.getFullYear() : '';
+  return r.start.toLocaleDateString('en-GB', o) + ' \u2013 ' + r.end.toLocaleDateString('en-GB', o) + y;
+}
+function showTab(which) {
+  $('logView').classList.toggle('hidden', which !== 'log');
+  $('avgView').classList.toggle('hidden', which !== 'avg');
+  $('tabLog').className = which === 'log' ? 'on' : ''; $('tabAvg').className = which === 'avg' ? 'on' : '';
+  $('tabLog').setAttribute('aria-selected', which === 'log'); $('tabAvg').setAttribute('aria-selected', which === 'avg');
+  if (which === 'avg') { avg.anchor = new Date(); loadAvg(); }
+  window.scrollTo(0, 0);
+}
+function setPeriod(p) {
+  avg.period = p;
+  $('perWeek').className = p === 'week' ? 'on' : ''; $('perMonth').className = p === 'month' ? 'on' : '';
+  $('perWeek').setAttribute('aria-pressed', p === 'week'); $('perMonth').setAttribute('aria-pressed', p === 'month');
+  loadAvg();
+}
+function shiftPeriod(dir) {
+  var a = avg.anchor;
+  avg.anchor = avg.period === 'week' ? addDays(a, 7 * dir) : new Date(a.getFullYear(), a.getMonth() + dir, 1);
+  loadAvg();
+}
+var periodCache = {};   // 'start|end' -> { d: data, t: time loaded }
+var FRESH_MS = 45000;
+function fetchPeriod(a, b) {
+  var k = a + '|' + b, gen = periodCache;
+  return call('getPeriod', a, b).then(function (d) {
+    if (gen === periodCache) periodCache[k] = { d: d, t: Date.now() };   // ignore if a write cleared the cache meanwhile
+    return d;
+  });
+}
+function prefetchNeighbours() {
+  var keep = avg.period, save = avg.anchor;
+  [-1, 1].forEach(function (dir) {
+    var a = keep === 'week' ? addDays(save, 7 * dir) : new Date(save.getFullYear(), save.getMonth() + dir, 1);
+    var anchor = avg.anchor; avg.anchor = a; var r = periodRange(); avg.anchor = anchor;
+    if (keyOf(r.start) > todayStr()) return;
+    var k = keyOf(r.start) + '|' + keyOf(r.end);
+    if (!periodCache[k]) fetchPeriod(keyOf(r.start), keyOf(r.end)).catch(function () {});
+  });
+}
+function loadAvg() {
+  var r = periodRange(), today = todayStr();
+  var hasToday = keyOf(r.start) <= today && today <= keyOf(r.end);
+  $('avgLabel').textContent = periodLabel(r);
+  var cur = avg.period === 'week' ? 'week' : 'month';
+  $('avgSub').innerHTML = hasToday ? 'This ' + cur : '<button class="link tight" id="avgNow">Back to this ' + cur + '</button>';
+  $('avgNext').disabled = keyOf(r.end) >= today;
+  avg.sel = null;
+  var req = ++avg.req, key = keyOf(r.start) + '|' + keyOf(r.end), hit = periodCache[key];
+  if (hit) {
+    avg.data = hit.d; $('avgBody').style.opacity = 1; renderAvg();
+    if (Date.now() - hit.t < FRESH_MS) { prefetchNeighbours(); return; }   // fresh enough: no server call
+  } else {
+    $('avgBody').style.opacity = 0.45;
+  }
+  fetchPeriod(keyOf(r.start), keyOf(r.end)).then(function (d) {
+    if (req !== avg.req) return;
+    avg.data = d; $('avgBody').style.opacity = 1; renderAvg(); prefetchNeighbours();
+  }).catch(function (e) { if (req === avg.req) { $('avgBody').style.opacity = 1; if (!hit) toast(e.message, true); } });
+}
+var METRICS = {
+  kcal:    { label: 'Calories', unit: 'kcal', color: 'var(--kcal)' },
+  protein: { label: 'Protein',  unit: 'g',    color: 'var(--prot)' },
+  carbs:   { label: 'Carbs',    unit: 'g',    color: 'var(--carb)' },
+  fat:     { label: 'Fat',      unit: 'g',    color: 'var(--fat)' }
+};
+var METRIC_ORDER = ['kcal', 'protein', 'carbs', 'fat'];
+function metricTarget(m, t) { return m === 'kcal' ? t.kcal : m === 'protein' ? t.proteinMin : m === 'carbs' ? t.carbs : t.fat; }
+function signed(n) { return (n >= 0 ? '+' : '\u2212') + fmtNum(Math.abs(n)); }
+function chipFor(m, a, t) {
+  var tg = metricTarget(m, t);
+  if (m === 'protein') {
+    if (a < t.proteinMin) return { cls: 'warn', txt: fmtNum(t.proteinMin - a) + ' g below ' + t.proteinMin };
+    return { cls: 'good', txt: a > t.proteinMax ? 'Above goal range' : 'In goal range' };
+  }
+  var tol = m === 'kcal' ? 0.05 : 0.10;
+  return { cls: Math.abs(a - tg) <= tg * tol ? 'good' : 'warn', txt: signed(a - tg) + ' vs ' + fmtNum(tg) };
+}
+function activityRowHtml(days, today) {
+  var any = false, cells = '', seen = {};
+  days.forEach(function (d) {
+    var a = d.activity || [], act = activeOf(a), title = d.date;
+    if (act.length) {
+      any = true; act.forEach(function (t) { seen[t] = 1; });
+      var inf = actInfo(act[0]);
+      title += ': ' + act.join(', ') + (d.note ? ' (' + d.note + ')' : '');
+      cells += avg.period === 'week'
+        ? '<span title="' + esc(title) + '"><i class="adot big" style="background:' + inf.c + '">' + esc(inf.k) + (act.length > 1 ? '+' : '') + '</i></span>'
+        : '<span title="' + esc(title) + '"><i class="adot" style="background:' + inf.c + '"></i></span>';
+    } else if (a.indexOf('Rest') >= 0) {
+      any = true; seen['Rest'] = 1;
+      cells += '<span title="' + esc(d.date + ': rest day') + '"><i class="adot rest"></i></span>';
+    } else { cells += '<span></span>'; }
+  });
+  if (!any) return '';
+  var order = (state && state.activityTypes ? state.activityTypes : ACT_ORDER_DEFAULT).slice();
+  Object.keys(seen).forEach(function (t) { if (order.indexOf(t) < 0) order.push(t); });
+  var legend = order.filter(function (t) { return seen[t]; }).map(function (t) {
+    return '<span><i style="background:' + actInfo(t).c + '"></i>' + esc(t === 'Rest' ? 'Rest' : t) + '</span>';
+  }).join('');
+  return '<div class="actrow">' + cells + '</div><div class="alegend">' + legend + '</div>';
+}
+function chartHtml(days, m, tg, today) {
+  var max = 0; days.forEach(function (d) { if (d.logged && d[m] > max) max = d[m]; });
+  var scale = Math.max(tg * 1.35, max * 1.05) || 1;
+  var cols = '', labels = '', unit = METRICS[m].unit;
+  days.forEach(function (d) {
+    var dt = fromKey(d.date), h = 0, style = '', title = d.date, click = d.date <= today;
+    if (d.date > today) { h = 0; }
+    else if (!d.logged) { h = 3; style = 'background:var(--line)'; title += ': nothing logged'; }
+    else {
+      h = Math.max(3, Math.min(100, d[m] / scale * 100));
+      var color = m === 'protein' ? (d[m] >= tg ? 'var(--prot)' : 'rgba(120,115,127,.5)') : METRICS[m].color;
+      var dim = (d.date === today && !avg.includeToday) ? ';opacity:.4' : '';
+      style = 'background:' + color + dim; title += ': ' + fmtNum(d[m]) + ' ' + unit;
+    }
+    cols += '<div class="col' + (avg.sel === d.date ? ' sel' : '') + '"' + (click ? ' data-date="' + d.date + '" role="button"' : '') +
+      ' title="' + title + '"><div style="height:' + h + '%;' + style + '"></div></div>';
+    var lab = avg.period === 'week' ? 'MTWTFSS'.charAt((dt.getDay() + 6) % 7) : ([1, 8, 15, 22, 29].indexOf(dt.getDate()) >= 0 ? dt.getDate() : '');
+    labels += '<span>' + lab + '</span>';
+  });
+  var line = '<div class="tline" style="bottom:' + (tg / scale * 100) + '%"></div>';
+  return '<div class="chart">' + cols + line + '</div><div class="xlabels">' + labels + '</div>' + activityRowHtml(days, today);
+}
+function actLineHtml(row) {
+  var a = row.activity || [];
+  if (!a.length) return '';
+  return '<div class="dact">Activity: <b>' + esc(a.map(actLabel).join(', ')) + '</b>' + (row.note ? ' \u00b7 ' + esc(row.note) : '') + '</div>';
+}
+function detailHtml(d, t, today) {
+  if (!avg.sel) return '<div class="legend">Tap a bar to see that day\u2019s exact numbers.</div>';
+  var row = d.days.filter(function (x) { return x.date === avg.sel; })[0];
+  if (!row) return '';
+  var title = fromKey(row.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) +
+    (row.date === today && !avg.includeToday ? ' \u00b7 today, not counted yet' : '');
+  if (!row.logged) return '<div class="detail"><div class="dtitle">' + title + '</div><div class="sub" style="margin:0">Nothing logged.</div>' + actLineHtml(row) + '</div>';
+  var cells = METRIC_ORDER.map(function (m) {
+    var unit = m === 'kcal' ? 'kcal' : 'g ' + METRICS[m].label.toLowerCase();
+    return '<div class="' + (m === avg.metric ? 'cur' : '') + '"><b>' + fmtNum(row[m]) + '</b><span>' + unit + '</span><span>' + signed(row[m] - metricTarget(m, t)) + '</span></div>';
+  }).join('');
+  return '<div class="detail"><div class="dtitle">' + title + '</div><div class="dgrid">' + cells + '</div>' + actLineHtml(row) +
+    '<div class="legend">Small numbers: difference from your daily target (protein vs the ' + t.proteinMin + ' g minimum).</div></div>';
+}
+function activitySummary(d, today) {
+  var types = {}, sessions = 0, activeDays = 0, restDays = 0, sofar = 0;
+  d.days.forEach(function (x) {
+    if (x.date > today) return;
+    sofar++;
+    var act = activeOf(x.activity);
+    if (act.length) { activeDays++; sessions += act.length; act.forEach(function (t) { types[t] = (types[t] || 0) + 1; }); }
+    else if ((x.activity || []).indexOf('Rest') >= 0) restDays++;
+  });
+  return { types: types, sessions: sessions, activeDays: activeDays, restDays: restDays, sofar: sofar };
+}
+function activityCardHtml(d, today) {
+  var s = activitySummary(d, today), head = '<div class="charttitle">Activity</div>';
+  if (!s.sessions) {
+    return '<div class="card">' + head + '<div class="sub">No activity logged in this ' + avg.period + '. Add it on the Log tab with the activity chips.</div></div>';
+  }
+  var chips = Object.keys(s.types).sort(function (a, b) { return s.types[b] - s.types[a] || (a < b ? -1 : 1); }).map(function (t) {
+    return '<span class="achip static on" style="background:' + actInfo(t).c + '">' + esc(t) + ' \u00d7 ' + s.types[t] + '</span>';
+  }).join('');
+  var open = d.days[d.days.length - 1].date >= today;
+  return '<div class="card">' + head +
+    '<div class="statrow"><span class="big">' + s.activeDays + '</span> <span class="unit">active day' + (s.activeDays === 1 ? '' : 's') + '</span> ' +
+    '<span class="pill">' + s.sessions + ' session' + (s.sessions === 1 ? '' : 's') + '</span></div>' +
+    '<div class="achips">' + chips + '</div>' +
+    '<div class="sub">Out of ' + s.sofar + ' day' + (s.sofar === 1 ? '' : 's') + (open ? ' so far' : '') + '.' +
+    (s.restDays ? ' ' + s.restDays + ' marked as rest.' : '') + ' Days with nothing entered are not counted as rest days.</div></div>';
+}
+function renderAvg() {
+  var d = avg.data, t = d.targets, today = todayStr(), body = $('avgBody');
+  var todayRow = d.days.filter(function (x) { return x.date === today; })[0];
+  var sofar = d.days.filter(function (x) { return x.date <= today; }).length;
+  var counted = d.days.filter(function (x) { return x.logged && x.date <= today && (x.date !== today || avg.includeToday); });
+  var n = counted.length, html = '';
+  var todayNote = '';
+  if (todayRow && todayRow.logged) {
+    todayNote = avg.includeToday
+      ? 'Today is counted. <button class="link" id="todayToggle">Leave it out</button>'
+      : 'Today is not counted until the day is over, so half-logged meals do not pull the average down. <button class="link" id="todayToggle">Count it now</button>';
+  }
+  if (n === 0) {
+    body.innerHTML = '<div class="card"><div class="statlabel">Nothing to average yet</div>' +
+      '<div class="sub">Averages use days that have at least one logged meal.' + (todayRow && todayRow.logged ? ' Today is not counted until the day is over.' : '') + '</div>' +
+      (todayNote ? '<div class="sub">' + todayNote + '</div>' : '') + '</div>' + activityCardHtml(d, today);
+    return;
+  }
+  var sums = { kcal: 0, protein: 0, carbs: 0, fat: 0 }, hit = 0;
+  counted.forEach(function (x) { METRIC_ORDER.forEach(function (m) { sums[m] += x[m]; }); if (x.protein >= t.proteinMin) hit++; });
+  var m = avg.metric, tg = metricTarget(m, t);
+  html += '<div class="tiles">' + METRIC_ORDER.map(function (k) {
+    var a = sums[k] / n, chip = chipFor(k, a, t);
+    return '<button class="tile' + (k === m ? ' on' : '') + '" aria-pressed="' + (k === m) + '" data-metric="' + k + '"><div class="tl">' + METRICS[k].label + ' \u00b7 avg per day</div>' +
+      '<div class="tv">' + fmtNum(a) + ' <span class="tu">' + METRICS[k].unit + '</span></div><span class="pill ' + chip.cls + '">' + chip.txt + '</span></button>';
+  }).join('') + '</div>';
+  var legend = m === 'protein'
+    ? 'Dashed line = ' + t.proteinMin + ' g minimum (goal ' + t.proteinMin + '\u2013' + t.proteinMax + ' g)'
+    : 'Dashed line = your ' + fmtNum(tg) + (m === 'kcal' ? ' kcal' : ' g ' + METRICS[m].label.toLowerCase()) + ' target';
+  html += '<div class="card"><div class="charttitle">' + METRICS[m].label + ' per day</div>' +
+    chartHtml(d.days, m, tg, today) + '<div class="legend">' + legend + '</div><div id="dayDetail">' + detailHtml(d, t, today) + '</div></div>';
+  html += activityCardHtml(d, today);
+  html += '<div class="note" style="padding:0 4px">Reached ' + t.proteinMin + ' g protein on ' + hit + ' of ' + n + ' counted day' + (n === 1 ? '' : 's') + '.</div>';
+  html += '<div class="note" style="padding:0 4px">Based on ' + n + ' of ' + sofar + ' day' + (sofar === 1 ? '' : 's') + (d.days[d.days.length - 1].date >= today ? ' so far' : '') +
+    '. Days with no logged meal are skipped, not counted as zero.' +
+    (n < 3 ? ' With only ' + n + ' day' + (n === 1 ? '' : 's') + ' counted, treat this as a rough guide.' : '') + '</div>';
+  if (todayNote) html += '<div class="note" style="padding:0 4px">' + todayNote + '</div>';
+  body.innerHTML = html;
+}
+$('tabLog').onclick = function () { showTab('log'); };
+$('tabAvg').onclick = function () { showTab('avg'); };
+$('perWeek').onclick = function () { setPeriod('week'); };
+$('perMonth').onclick = function () { setPeriod('month'); };
+$('avgPrev').onclick = function () { shiftPeriod(-1); };
+$('avgNext').onclick = function () { shiftPeriod(1); };
+// Selecting a day: tap or drag along the chart. Bars are only ~12 px wide in the month view, so the nearest day to the finger wins.
+function nearestDay(chart, x) {
+  var best = null, bd = 1e9;
+  chart.querySelectorAll('.col[data-date]').forEach(function (c) {
+    var r = c.getBoundingClientRect(), dist = Math.abs(x - (r.left + r.width / 2));
+    if (dist < bd) { bd = dist; best = c; }
+  });
+  return best ? best.getAttribute('data-date') : null;
+}
+function selectDay(k) {
+  avg.sel = k;
+  document.querySelectorAll('#avgBody .col').forEach(function (c) { c.classList.toggle('sel', c.getAttribute('data-date') === k); });
+  var box = $('dayDetail'); if (box && avg.data) box.innerHTML = detailHtml(avg.data, avg.data.targets, todayStr());
+}
+var scrub = { on: false };
+$('avgBody').addEventListener('pointerdown', function (ev) {
+  var chart = ev.target.closest && ev.target.closest('.chart'); if (!chart) return;
+  var k = nearestDay(chart, ev.clientX); if (!k) return;
+  scrub = { on: true, chart: chart, start: avg.sel, first: k, moved: false };
+  try { chart.setPointerCapture(ev.pointerId); } catch (e) {}
+  selectDay(k);
+});
+$('avgBody').addEventListener('pointermove', function (ev) {
+  if (!scrub.on) return;
+  var k = nearestDay(scrub.chart, ev.clientX);
+  if (k && k !== avg.sel) { scrub.moved = true; selectDay(k); }
+});
+['pointerup', 'pointercancel'].forEach(function (name) {
+  $('avgBody').addEventListener(name, function () {
+    if (!scrub.on) return;
+    var s = scrub; scrub = { on: false };
+    if (!s.moved && s.start === s.first) selectDay(null);       // tapping the selected day again clears it
+  });
+});
+$('avgSub').addEventListener('click', function (ev) {
+  if (ev.target && ev.target.id === 'avgNow') { avg.anchor = new Date(); loadAvg(); }
+});
+$('avgBody').addEventListener('click', function (ev) {
+  var el = ev.target; if (!el || !el.closest) return;
+  if (el.id === 'todayToggle') { avg.includeToday = !avg.includeToday; renderAvg(); return; }
+  var tile = el.closest('.tile');
+  if (tile) { avg.metric = tile.getAttribute('data-metric'); renderAvg(); return; }
+  var col = el.closest('.col');
+  if (col && col.getAttribute('data-date') && !window.PointerEvent) {      // browsers with pointer events use the scrub handlers above
+    var k = col.getAttribute('data-date'); avg.sel = (avg.sel === k) ? null : k; renderAvg();
+  }
+});
+
+
+// ---------- start-up, and coming back to the app later ----------
+loadedToday = todayStr(); $('date').max = loadedToday; $('date').value = loadedToday;
+meal = guessMeal(); renderChips(); onDateChanged();
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState !== 'visible') return;
+  var t = todayStr();
+  if (t !== loadedToday) {                     // the page stayed open past midnight
+    if ($('date').value === loadedToday) $('date').value = t;
+    loadedToday = t; $('date').max = t; onDateChanged();
+  } else { refresh(); }
+});
+</script>
+</body>
+</html>
